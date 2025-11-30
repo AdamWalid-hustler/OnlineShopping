@@ -5,7 +5,9 @@ namespace OnlineShopping.Models
     {
         public int ProductId {get; set; } //PK
         public int CategoryId {get; set; } //FK
-        public int Name {get; set; }
+        public string Name {get; set; } = "";
         public decimal UnitPrice {get; set; }
+
+        public List<OrderLine> OrderLines {get; set; } = new List<OrderLine>(); // A product can appear in many OrderLines
     }
 }

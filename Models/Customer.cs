@@ -10,7 +10,7 @@ namespace OnlineShopping.Models
         public required string Email {get; set;}
         public string Adress {get; set; } = "";
 
-        public List<Order> Orders {get; set; } new();
+        public List<Order> Orders {get; set; } = new List<Order>();
 
         
     }
