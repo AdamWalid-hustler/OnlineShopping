@@ -3,7 +3,7 @@ namespace OnlineShopping.Models
 {
     public class OrderLine
     {
-        public int OrderLineId {get; set;} //PK
+        public int Id {get; set;} //PK
         public int ProductId {get; set; } //FK
         public int OrderId {get; set; } //FK
         public decimal UnitPrice {get; set; }
