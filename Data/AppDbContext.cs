@@ -1,5 +1,5 @@
+using System;
 using System.Collections.Concurrent;
-using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using OnlineShopping.Models;
 
@@ -7,7 +7,12 @@ namespace OnlineShopping.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppContext> options) : base(options)
+        // Parameterless constructor for design-time tools
+        public AppDbContext()
+        {
+        }
+
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
         
@@ -16,6 +21,15 @@ namespace OnlineShopping.Data
         public DbSet<Order> Orders {get; set; }
         public DbSet<Product> Products {get; set; }
         public DbSet<OrderLine> OrderLines {get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            // Provide a default Sqlite database for design-time tools/migrations when no options are supplied
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder.UseSqlite("Data Source=onlineshopping.db");
+            }
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -29,8 +43,8 @@ namespace OnlineShopping.Data
                 new Category {Id = 2, Name = "Summer clothing", Description = "Light and comfortable clothing for warm weather"}
             );
             modelBuilder.Entity<Order>().HasData(
-                new Order {Id = 11, CustomerId = 1, Date = DateTime.Now, TotalAmount = 64.30M},
-                new Order {Id = 12, CustomerId = 2, Date = DateTime.Now, TotalAmount = 85.70M}
+                new Order {Id = 11, CustomerId = 1, Date = new DateTime(2024, 01, 01), TotalAmount = 64.30M},
+                new Order {Id = 12, CustomerId = 2, Date = new DateTime(2024, 01, 02), TotalAmount = 85.70M}
             );
             modelBuilder.Entity<Product>().HasData(
                 new Product {Id = 101, CategoryId = 1, Name = "Basketball", UnitPrice = 16.99m},
@@ -46,5 +60,5 @@ namespace OnlineShopping.Data
     
 
     
-}
+    }
 }
