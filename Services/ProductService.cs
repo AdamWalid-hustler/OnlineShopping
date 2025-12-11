@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OnlineShopping.Data;
 using OnlineShopping.Models;
-using System.ComponentModel.DataAnnotations;
 
 namespace OnlineShopping.Services
 {
@@ -15,63 +14,89 @@ namespace OnlineShopping.Services
         }
 
         // CREATE
-        public async Task<(bool success, string message, Product? product)> CreateProductAsync(Product product)
+        public Product? CreateProduct(string name, decimal price, int categoryId, int stock = 0)
         {
             try
             {
-                // Validate
-                var validationResults = new List<ValidationResult>();
-                var validationContext = new ValidationContext(product);
-                
-                if (!Validator.TryValidateObject(product, validationContext, validationResults, true))
+                // Validate mandatory fields
+                if (string.IsNullOrWhiteSpace(name))
                 {
-                    var errors = string.Join(", ", validationResults.Select(v => v.ErrorMessage));
-                    return (false, $"Validation failed: {errors}", null);
+                    Console.WriteLine("Error: Product name is required");
+                    return null;
+                }
+
+                if (name.Length < 2 || name.Length > 100)
+                {
+                    Console.WriteLine("Error: Product name must be between 2 and 100 characters");
+                    return null;
+                }
+
+                if (price <= 0)
+                {
+                    Console.WriteLine("Error: Unit price must be greater than 0");
+                    return null;
+                }
+
+                if (stock < 0)
+                {
+                    Console.WriteLine("Error: Stock cannot be negative");
+                    return null;
                 }
 
                 // Check if category exists
-                var categoryExists = await _context.Categories.AnyAsync(c => c.Id == product.CategoryId);
-                if (!categoryExists)
+                var category = _context.Categories.Find(categoryId);
+                if (category == null)
                 {
-                    return (false, "Category does not exist", null);
+                    Console.WriteLine("Error: Category does not exist");
+                    return null;
                 }
 
+                var product = new Product
+                {
+                    Name = name,
+                    UnitPrice = price,
+                    CategoryId = categoryId,
+                    Stock = stock
+                };
+
                 _context.Products.Add(product);
-                await _context.SaveChangesAsync();
-                return (true, "Product created successfully", product);
+                _context.SaveChanges();
+                
+                Console.WriteLine("Product created successfully");
+                return product;
             }
             catch (Exception ex)
             {
-                return (false, $"Error creating product: {ex.Message}", null);
+                Console.WriteLine($"Error creating product: {ex.Message}");
+                return null;
             }
         }
 
         // READ (Single)
-        public async Task<(bool success, string message, Product? product)> GetProductByIdAsync(int id)
+        public Product? GetProductById(int id)
         {
             try
             {
-                var product = await _context.Products
+                var product = _context.Products
                     .Include(p => p.Category)
-                    .FirstOrDefaultAsync(p => p.Id == id);
+                    .FirstOrDefault(p => p.Id == id);
 
                 if (product == null)
                 {
-                    return (false, "Product not found", null);
+                    Console.WriteLine("Error: Product not found");
                 }
 
-                return (true, "Product found", product);
+                return product;
             }
             catch (Exception ex)
             {
-                return (false, $"Error retrieving product: {ex.Message}", null);
+                Console.WriteLine($"Error retrieving product: {ex.Message}");
+                return null;
             }
         }
 
         // READ (List with filtering)
-        public async Task<(bool success, string message, List<Product> products)> GetProductsAsync(
-            string? searchTerm = null, 
-            int? categoryId = null)
+        public List<Product> GetProducts(string? searchTerm = null)
         {
             try
             {
@@ -84,86 +109,106 @@ namespace OnlineShopping.Services
                     query = query.Where(p => p.Name.Contains(searchTerm));
                 }
 
-                if (categoryId.HasValue)
-                {
-                    query = query.Where(p => p.CategoryId == categoryId.Value);
-                }
-
-                var products = await query.OrderBy(p => p.Name).ToListAsync();
-                return (true, $"Found {products.Count} product(s)", products);
+                var products = query.OrderBy(p => p.Name).ToList();
+                return products;
             }
             catch (Exception ex)
             {
-                return (false, $"Error retrieving products: {ex.Message}", new List<Product>());
+                Console.WriteLine($"Error retrieving products: {ex.Message}");
+                return new List<Product>();
             }
         }
 
         // UPDATE
-        public async Task<(bool success, string message)> UpdateProductAsync(Product product)
+        public bool UpdateProduct(int id, string name, decimal price, int categoryId, int stock)
         {
             try
             {
-                // Validation
-                var validationResults = new List<ValidationResult>();
-                var validationContext = new ValidationContext(product);
-                
-                if (!Validator.TryValidateObject(product, validationContext, validationResults, true))
+                // Validate mandatory fields
+                if (string.IsNullOrWhiteSpace(name))
                 {
-                    var errors = string.Join(", ", validationResults.Select(v => v.ErrorMessage));
-                    return (false, $"Validation failed: {errors}");
+                    Console.WriteLine("Error: Product name is required");
+                    return false;
                 }
 
-                var existingProduct = await _context.Products.FindAsync(product.Id);
-                if (existingProduct == null)
+                if (name.Length < 2 || name.Length > 100)
                 {
-                    return (false, "Product not found");
+                    Console.WriteLine("Error: Product name must be between 2 and 100 characters");
+                    return false;
+                }
+
+                if (price <= 0)
+                {
+                    Console.WriteLine("Error: Unit price must be greater than 0");
+                    return false;
+                }
+
+                if (stock < 0)
+                {
+                    Console.WriteLine("Error: Stock cannot be negative");
+                    return false;
+                }
+
+                var product = _context.Products.Find(id);
+                if (product == null)
+                {
+                    Console.WriteLine("Error: Product not found");
+                    return false;
                 }
 
                 // Check if category exists
-                var categoryExists = await _context.Categories.AnyAsync(c => c.Id == product.CategoryId);
-                if (!categoryExists)
+                var category = _context.Categories.Find(categoryId);
+                if (category == null)
                 {
-                    return (false, "Category does not exist");
+                    Console.WriteLine("Error: Category does not exist");
+                    return false;
                 }
 
-                existingProduct.Name = product.Name;
-                existingProduct.UnitPrice = product.UnitPrice;
-                existingProduct.CategoryId = product.CategoryId;
+                product.Name = name;
+                product.UnitPrice = price;
+                product.CategoryId = categoryId;
+                product.Stock = stock;
 
-                await _context.SaveChangesAsync();
-                return (true, "Product updated successfully");
+                _context.SaveChanges();
+                Console.WriteLine("Product updated successfully");
+                return true;
             }
             catch (Exception ex)
             {
-                return (false, $"Error updating product: {ex.Message}");
+                Console.WriteLine($"Error updating product: {ex.Message}");
+                return false;
             }
         }
 
         // DELETE
-        public async Task<(bool success, string message)> DeleteProductAsync(int id)
+        public bool DeleteProduct(int id)
         {
             try
             {
-                var product = await _context.Products.FindAsync(id);
+                var product = _context.Products.Find(id);
                 if (product == null)
                 {
-                    return (false, "Product not found");
+                    Console.WriteLine("Error: Product not found");
+                    return false;
                 }
 
                 // Check if product is used in any order lines
-                var hasOrderLines = await _context.OrderLines.AnyAsync(ol => ol.ProductId == id);
+                var hasOrderLines = _context.OrderLines.Any(ol => ol.ProductId == id);
                 if (hasOrderLines)
                 {
-                    return (false, "Cannot delete product - it is referenced in existing orders");
+                    Console.WriteLine("Error: Cannot delete product - it is used in existing orders");
+                    return false;
                 }
 
                 _context.Products.Remove(product);
-                await _context.SaveChangesAsync();
-                return (true, "Product deleted successfully");
+                _context.SaveChanges();
+                Console.WriteLine("Product deleted successfully");
+                return true;
             }
             catch (Exception ex)
             {
-                return (false, $"Error deleting product: {ex.Message}");
+                Console.WriteLine($"Error deleting product: {ex.Message}");
+                return false;
             }
         }
     }

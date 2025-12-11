@@ -16,6 +16,10 @@ namespace OnlineShopping.Models
         [Range(0.01, 999999.99, ErrorMessage = "Unit price must be between 0.01 and 999999.99")]
         public decimal UnitPrice { get; set; }
 
+        [Required(ErrorMessage = "Stock quantity is required")]
+        [Range(0, 999999, ErrorMessage = "Stock must be between 0 and 999999")]
+        public int Stock { get; set; }
+
         // Navigation properties
         public Category? Category { get; set; }
         public List<OrderLine> OrderLines { get; set; } = new List<OrderLine>();

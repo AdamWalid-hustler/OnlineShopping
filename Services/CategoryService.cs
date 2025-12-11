@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OnlineShopping.Data;
 using OnlineShopping.Models;
-using System.ComponentModel.DataAnnotations;
 
 namespace OnlineShopping.Services
 {
@@ -15,61 +14,81 @@ namespace OnlineShopping.Services
         }
 
         // CREATE
-        public async Task<(bool success, string message, Category? category)> CreateCategoryAsync(Category category)
+        public Category? CreateCategory(string name, string description)
         {
             try
             {
-                // Validate
-                var validationResults = new List<ValidationResult>();
-                var validationContext = new ValidationContext(category);
-                
-                if (!Validator.TryValidateObject(category, validationContext, validationResults, true))
+                // Validate mandatory fields
+                if (string.IsNullOrWhiteSpace(name))
                 {
-                    var errors = string.Join(", ", validationResults.Select(v => v.ErrorMessage));
-                    return (false, $"Validation failed: {errors}", null);
+                    Console.WriteLine("Error: Category name is required");
+                    return null;
+                }
+
+                if (name.Length < 2 || name.Length > 50)
+                {
+                    Console.WriteLine("Error: Category name must be between 2 and 50 characters");
+                    return null;
+                }
+
+                if (!string.IsNullOrEmpty(description) && description.Length > 500)
+                {
+                    Console.WriteLine("Error: Description cannot exceed 500 characters");
+                    return null;
                 }
 
                 // Check for duplicate category name
-                var exists = await _context.Categories.AnyAsync(c => c.Name.ToLower() == category.Name.ToLower());
+                var exists = _context.Categories.Any(c => c.Name.ToLower() == name.ToLower());
                 if (exists)
                 {
-                    return (false, "A category with this name already exists", null);
+                    Console.WriteLine("Error: A category with this name already exists");
+                    return null;
                 }
 
+                var category = new Category
+                {
+                    Name = name,
+                    Description = description
+                };
+
                 _context.Categories.Add(category);
-                await _context.SaveChangesAsync();
-                return (true, "Category created successfully", category);
+                _context.SaveChanges();
+                
+                Console.WriteLine("Category created successfully");
+                return category;
             }
             catch (Exception ex)
             {
-                return (false, $"Error creating category: {ex.Message}", null);
+                Console.WriteLine($"Error creating category: {ex.Message}");
+                return null;
             }
         }
 
         // READ (Single)
-        public async Task<(bool success, string message, Category? category)> GetCategoryByIdAsync(int id)
+        public Category? GetCategoryById(int id)
         {
             try
             {
-                var category = await _context.Categories
+                var category = _context.Categories
                     .Include(c => c.Products)
-                    .FirstOrDefaultAsync(c => c.Id == id);
+                    .FirstOrDefault(c => c.Id == id);
 
                 if (category == null)
                 {
-                    return (false, "Category not found", null);
+                    Console.WriteLine("Error: Category not found");
                 }
 
-                return (true, "Category found", category);
+                return category;
             }
             catch (Exception ex)
             {
-                return (false, $"Error retrieving category: {ex.Message}", null);
+                Console.WriteLine($"Error retrieving category: {ex.Message}");
+                return null;
             }
         }
 
-        // READ (List with filtering)
-        public async Task<(bool success, string message, List<Category> categories)> GetCategoriesAsync(string? searchTerm = null)
+        // READ (List)
+        public List<Category> GetCategories(string? searchTerm = null)
         {
             try
             {
@@ -79,84 +98,102 @@ namespace OnlineShopping.Services
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    query = query.Where(c => c.Name.Contains(searchTerm) || c.Description.Contains(searchTerm));
+                    query = query.Where(c => c.Name.Contains(searchTerm));
                 }
 
-                var categories = await query.OrderBy(c => c.Name).ToListAsync();
-                return (true, $"Found {categories.Count} category(ies)", categories);
+                var categories = query.OrderBy(c => c.Name).ToList();
+                return categories;
             }
             catch (Exception ex)
             {
-                return (false, $"Error retrieving categories: {ex.Message}", new List<Category>());
+                Console.WriteLine($"Error retrieving categories: {ex.Message}");
+                return new List<Category>();
             }
         }
 
         // UPDATE
-        public async Task<(bool success, string message)> UpdateCategoryAsync(Category category)
+        public bool UpdateCategory(int id, string name, string description)
         {
             try
             {
-                // Validate
-                var validationResults = new List<ValidationResult>();
-                var validationContext = new ValidationContext(category);
-                
-                if (!Validator.TryValidateObject(category, validationContext, validationResults, true))
+                // Validate mandatory fields
+                if (string.IsNullOrWhiteSpace(name))
                 {
-                    var errors = string.Join(", ", validationResults.Select(v => v.ErrorMessage));
-                    return (false, $"Validation failed: {errors}");
+                    Console.WriteLine("Error: Category name is required");
+                    return false;
                 }
 
-                var existingCategory = await _context.Categories.FindAsync(category.Id);
-                if (existingCategory == null)
+                if (name.Length < 2 || name.Length > 50)
                 {
-                    return (false, "Category not found");
+                    Console.WriteLine("Error: Category name must be between 2 and 50 characters");
+                    return false;
+                }
+
+                if (!string.IsNullOrEmpty(description) && description.Length > 500)
+                {
+                    Console.WriteLine("Error: Description cannot exceed 500 characters");
+                    return false;
+                }
+
+                var category = _context.Categories.Find(id);
+                if (category == null)
+                {
+                    Console.WriteLine("Error: Category not found");
+                    return false;
                 }
 
                 // Check for duplicate name (excluding current category)
-                var duplicateExists = await _context.Categories
-                    .AnyAsync(c => c.Name.ToLower() == category.Name.ToLower() && c.Id != category.Id);
+                var duplicateExists = _context.Categories
+                    .Any(c => c.Name.ToLower() == name.ToLower() && c.Id != id);
                 if (duplicateExists)
                 {
-                    return (false, "A category with this name already exists");
+                    Console.WriteLine("Error: A category with this name already exists");
+                    return false;
                 }
 
-                existingCategory.Name = category.Name;
-                existingCategory.Description = category.Description;
+                category.Name = name;
+                category.Description = description;
 
-                await _context.SaveChangesAsync();
-                return (true, "Category updated successfully");
+                _context.SaveChanges();
+                Console.WriteLine("Category updated successfully");
+                return true;
             }
             catch (Exception ex)
             {
-                return (false, $"Error updating category: {ex.Message}");
+                Console.WriteLine($"Error updating category: {ex.Message}");
+                return false;
             }
         }
 
         // DELETE
-        public async Task<(bool success, string message)> DeleteCategoryAsync(int id)
+        public bool DeleteCategory(int id)
         {
             try
             {
-                var category = await _context.Categories.FindAsync(id);
+                var category = _context.Categories.Find(id);
                 if (category == null)
                 {
-                    return (false, "Category not found");
+                    Console.WriteLine("Error: Category not found");
+                    return false;
                 }
 
                 // Check if category has products
-                var hasProducts = await _context.Products.AnyAsync(p => p.CategoryId == id);
+                var hasProducts = _context.Products.Any(p => p.CategoryId == id);
                 if (hasProducts)
                 {
-                    return (false, "Cannot delete category - it has associated products");
+                    Console.WriteLine("Error: Cannot delete category - it has associated products");
+                    return false;
                 }
 
                 _context.Categories.Remove(category);
-                await _context.SaveChangesAsync();
-                return (true, "Category deleted successfully");
+                _context.SaveChanges();
+                Console.WriteLine("Category deleted successfully");
+                return true;
             }
             catch (Exception ex)
             {
-                return (false, $"Error deleting category: {ex.Message}");
+                Console.WriteLine($"Error deleting category: {ex.Message}");
+                return false;
             }
         }
     }

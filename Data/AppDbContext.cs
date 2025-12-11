@@ -21,6 +21,9 @@ namespace OnlineShopping.Data
         public DbSet<Order> Orders { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<OrderLine> OrderLines { get; set; }
+        
+        // Database VIEW
+        public DbSet<OrderSummaryView> OrderSummaryView { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -33,6 +36,13 @@ namespace OnlineShopping.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // Configure DATABASE VIEW
+            modelBuilder.Entity<OrderSummaryView>(entity =>
+            {
+                entity.HasNoKey(); // Views don't have primary keys
+                entity.ToView("OrderSummaryView"); // Map to database view
+            });
+
             // Configure indexes for performance
             modelBuilder.Entity<Customer>()
                 .HasIndex(c => c.Email)
@@ -50,11 +60,23 @@ namespace OnlineShopping.Data
             modelBuilder.Entity<Order>()
                 .HasIndex(o => o.CustomerId);
 
+            // Composite index for order queries with sorting
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => new { o.Date, o.TotalAmount });
+
+            // Index for date range queries
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => o.Date);
+
             modelBuilder.Entity<OrderLine>()
                 .HasIndex(ol => ol.OrderId);
 
             modelBuilder.Entity<OrderLine>()
                 .HasIndex(ol => ol.ProductId);
+
+            // Index for stock queries
+            modelBuilder.Entity<Product>()
+                .HasIndex(p => p.Stock);
 
             // Configure relationships
             modelBuilder.Entity<Product>()
@@ -81,9 +103,13 @@ namespace OnlineShopping.Data
                 .HasForeignKey(ol => ol.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Seed data with password hashing
+            // Seed data with password hashing and address encryption
             var (hash1, salt1) = PasswordHasher.HashPassword("password123");
             var (hash2, salt2) = PasswordHasher.HashPassword("password456");
+            
+            // Encrypt addresses for security (application-level encryption)
+            var encryptedAddress1 = EncryptionHelper.Encrypt("Hamngatan 6");
+            var encryptedAddress2 = EncryptionHelper.Encrypt("Kistagången 22");
 
             modelBuilder.Entity<Customer>().HasData(
                 new Customer 
@@ -91,7 +117,7 @@ namespace OnlineShopping.Data
                     Id = 1, 
                     Name = "Sal", 
                     Email = "sal123@su.com", 
-                    Address = "Hamngatan 6",
+                    Address = encryptedAddress1,  // Stored encrypted in database
                     PasswordHash = hash1,
                     PasswordSalt = salt1
                 },
@@ -100,7 +126,7 @@ namespace OnlineShopping.Data
                     Id = 2, 
                     Name = "Amjad", 
                     Email = "amjad123@su.com", 
-                    Address = "Kistagången 22",
+                    Address = encryptedAddress2,  // Stored encrypted in database
                     PasswordHash = hash2,
                     PasswordSalt = salt2
                 }
@@ -117,8 +143,8 @@ namespace OnlineShopping.Data
             );
 
             modelBuilder.Entity<Product>().HasData(
-                new Product { Id = 101, CategoryId = 1, Name = "Basketball", UnitPrice = 16.99m },
-                new Product { Id = 102, CategoryId = 2, Name = "T-Shirt", UnitPrice = 11.99m }
+                new Product { Id = 101, CategoryId = 1, Name = "Basketball", UnitPrice = 16.99m, Stock = 50 },
+                new Product { Id = 102, CategoryId = 2, Name = "T-Shirt", UnitPrice = 11.99m, Stock = 100 }
             );
 
             modelBuilder.Entity<OrderLine>().HasData(

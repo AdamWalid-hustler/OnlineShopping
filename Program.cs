@@ -1,19 +1,20 @@
 ﻿using OnlineShopping.Data;
 using OnlineShopping.Models;
 using OnlineShopping.Services;
-using OnlineShopping.Utilities;
+using Microsoft.EntityFrameworkCore;
 
 namespace OnlineShopping
 {
     class Program
     {
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
-            Console.WriteLine("=== Online Shopping Management System ===\n");
+            Console.WriteLine("=== Online Shopping System ===\n");
 
             using var context = new AppDbContext();
             var productService = new ProductService(context);
             var categoryService = new CategoryService(context);
+            var orderService = new OrderService(context);
 
             bool exit = false;
             while (!exit)
@@ -21,8 +22,10 @@ namespace OnlineShopping
                 Console.WriteLine("\n=== MAIN MENU ===");
                 Console.WriteLine("1. Product Management");
                 Console.WriteLine("2. Category Management");
-                Console.WriteLine("3. Test Password Hashing");
-                Console.WriteLine("4. Exit");
+                Console.WriteLine("3. Order Management");
+                Console.WriteLine("4. Test Database View");
+                Console.WriteLine("5. Test Encryption");
+                Console.WriteLine("6. Exit");
                 Console.Write("Select option: ");
 
                 var choice = Console.ReadLine();
@@ -31,15 +34,21 @@ namespace OnlineShopping
                 switch (choice)
                 {
                     case "1":
-                        await ProductMenuAsync(productService, categoryService);
+                        ProductMenu(productService, categoryService);
                         break;
                     case "2":
-                        await CategoryMenuAsync(categoryService);
+                        CategoryMenu(categoryService);
                         break;
                     case "3":
-                        TestPasswordHashing();
+                        OrderMenu(orderService, productService, context);
                         break;
                     case "4":
+                        TestDatabaseView(orderService);
+                        break;
+                    case "5":
+                        TestEncryption(context);
+                        break;
+                    case "6":
                         exit = true;
                         Console.WriteLine("Goodbye!");
                         break;
@@ -50,7 +59,7 @@ namespace OnlineShopping
             }
         }
 
-        static async Task ProductMenuAsync(ProductService productService, CategoryService categoryService)
+        static void ProductMenu(ProductService productService, CategoryService categoryService)
         {
             bool back = false;
             while (!back)
@@ -71,22 +80,22 @@ namespace OnlineShopping
                 switch (choice)
                 {
                     case "1":
-                        await ListProductsAsync(productService);
+                        ListProducts(productService);
                         break;
                     case "2":
-                        await SearchProductsAsync(productService);
+                        SearchProducts(productService);
                         break;
                     case "3":
-                        await ViewProductDetailsAsync(productService);
+                        ViewProductDetails(productService);
                         break;
                     case "4":
-                        await CreateProductAsync(productService, categoryService);
+                        CreateProduct(productService, categoryService);
                         break;
                     case "5":
-                        await UpdateProductAsync(productService, categoryService);
+                        UpdateProduct(productService, categoryService);
                         break;
                     case "6":
-                        await DeleteProductAsync(productService);
+                        DeleteProduct(productService);
                         break;
                     case "7":
                         back = true;
@@ -98,18 +107,62 @@ namespace OnlineShopping
             }
         }
 
-        static async Task CategoryMenuAsync(CategoryService categoryService)
+        static void CategoryMenu(CategoryService categoryService)
         {
             bool back = false;
             while (!back)
             {
                 Console.WriteLine("\n=== CATEGORY MANAGEMENT ===");
                 Console.WriteLine("1. List all categories");
-                Console.WriteLine("2. Search categories");
-                Console.WriteLine("3. View category details");
-                Console.WriteLine("4. Create new category");
-                Console.WriteLine("5. Update category");
-                Console.WriteLine("6. Delete category");
+                Console.WriteLine("2. View category details");
+                Console.WriteLine("3. Create new category");
+                Console.WriteLine("4. Update category");
+                Console.WriteLine("5. Delete category");
+                Console.WriteLine("6. Back to main menu");
+                Console.Write("Select option: ");
+
+                var choice = Console.ReadLine();
+                Console.WriteLine();
+
+                switch (choice)
+                {
+                    case "1":
+                        ListCategories(categoryService);
+                        break;
+                    case "2":
+                        ViewCategoryDetails(categoryService);
+                        break;
+                    case "3":
+                        CreateCategory(categoryService);
+                        break;
+                    case "4":
+                        UpdateCategory(categoryService);
+                        break;
+                    case "5":
+                        DeleteCategory(categoryService);
+                        break;
+                    case "6":
+                        back = true;
+                        break;
+                    default:
+                        Console.WriteLine("Invalid option. Please try again.");
+                        break;
+                }
+            }
+        }
+
+        static void OrderMenu(OrderService orderService, ProductService productService, AppDbContext context)
+        {
+            bool back = false;
+            while (!back)
+            {
+                Console.WriteLine("\n=== ORDER MANAGEMENT ===");
+                Console.WriteLine("1. List all orders");
+                Console.WriteLine("2. View order details");
+                Console.WriteLine("3. Create new order");
+                Console.WriteLine("4. Update order items");
+                Console.WriteLine("5. Delete order");
+                Console.WriteLine("6. View low stock products");
                 Console.WriteLine("7. Back to main menu");
                 Console.Write("Select option: ");
 
@@ -119,22 +172,22 @@ namespace OnlineShopping
                 switch (choice)
                 {
                     case "1":
-                        await ListCategoriesAsync(categoryService);
+                        ListOrders(orderService);
                         break;
                     case "2":
-                        await SearchCategoriesAsync(categoryService);
+                        ViewOrderDetails(orderService);
                         break;
                     case "3":
-                        await ViewCategoryDetailsAsync(categoryService);
+                        CreateOrder(orderService, context);
                         break;
                     case "4":
-                        await CreateCategoryAsync(categoryService);
+                        UpdateOrder(orderService, context);
                         break;
                     case "5":
-                        await UpdateCategoryAsync(categoryService);
+                        DeleteOrder(orderService);
                         break;
                     case "6":
-                        await DeleteCategoryAsync(categoryService);
+                        ViewLowStockProducts(orderService);
                         break;
                     case "7":
                         back = true;
@@ -146,63 +199,47 @@ namespace OnlineShopping
             }
         }
 
-        // Product CRUD operations
-        static async Task ListProductsAsync(ProductService productService)
+        // Product Operations
+        static void ListProducts(ProductService productService)
         {
-            var result = await productService.GetProductsAsync();
-            if (result.success)
+            var products = productService.GetProducts();
+            Console.WriteLine($"=== All Products ({products.Count}) ===");
+            foreach (var product in products)
             {
-                Console.WriteLine($"=== {result.message} ===");
-                foreach (var product in result.products)
-                {
-                    Console.WriteLine($"ID: {product.Id}, Name: {product.Name}, " +
-                                    $"Price: ${product.UnitPrice:F2}, Category: {product.Category?.Name ?? "N/A"}");
-                }
-            }
-            else
-            {
-                Console.WriteLine($"Error: {result.message}");
+                Console.WriteLine($"ID: {product.Id}, Name: {product.Name}, " +
+                                $"Price: ${product.UnitPrice:F2}, Stock: {product.Stock}, " +
+                                $"Category: {product.Category?.Name ?? "N/A"}");
             }
         }
 
-        static async Task SearchProductsAsync(ProductService productService)
+        static void SearchProducts(ProductService productService)
         {
             Console.Write("Enter search term: ");
             var searchTerm = Console.ReadLine();
 
-            var result = await productService.GetProductsAsync(searchTerm);
-            if (result.success)
+            var products = productService.GetProducts(searchTerm);
+            Console.WriteLine($"\n=== Found {products.Count} products ===");
+            foreach (var product in products)
             {
-                Console.WriteLine($"\n=== {result.message} ===");
-                foreach (var product in result.products)
-                {
-                    Console.WriteLine($"ID: {product.Id}, Name: {product.Name}, " +
-                                    $"Price: ${product.UnitPrice:F2}, Category: {product.Category?.Name ?? "N/A"}");
-                }
-            }
-            else
-            {
-                Console.WriteLine($"Error: {result.message}");
+                Console.WriteLine($"ID: {product.Id}, Name: {product.Name}, " +
+                                $"Price: ${product.UnitPrice:F2}, Stock: {product.Stock}");
             }
         }
 
-        static async Task ViewProductDetailsAsync(ProductService productService)
+        static void ViewProductDetails(ProductService productService)
         {
             Console.Write("Enter product ID: ");
             if (int.TryParse(Console.ReadLine(), out int id))
             {
-                var result = await productService.GetProductByIdAsync(id);
-                if (result.success && result.product != null)
+                var product = productService.GetProductById(id);
+                if (product != null)
                 {
                     Console.WriteLine("\n=== Product Details ===");
-                    Console.WriteLine($"ID: {result.product.Id}");
-                    Console.WriteLine($"Name: {result.product.Name}");
-                    Console.WriteLine($"Unit Price: ${result.product.UnitPrice:F2}");
-                    Console.WriteLine($"Category: {result.product.Category?.Name ?? "N/A"}");
-                }
-                else
-                {
-                    Console.WriteLine($"Error: {result.message}");
+                    Console.WriteLine($"ID: {product.Id}");
+                    Console.WriteLine($"Name: {product.Name}");
+                    Console.WriteLine($"Unit Price: ${product.UnitPrice:F2}");
+                    Console.WriteLine($"Stock: {product.Stock}");
+                    Console.WriteLine($"Category: {product.Category?.Name ?? "N/A"}");
                 }
             }
             else
@@ -211,20 +248,19 @@ namespace OnlineShopping
             }
         }
 
-        static async Task CreateProductAsync(ProductService productService, CategoryService categoryService)
+        static void CreateProduct(ProductService productService, CategoryService categoryService)
         {
             Console.WriteLine("=== Create New Product ===");
             
-            // Show available categories
-            var categoriesResult = await categoryService.GetCategoriesAsync();
-            if (!categoriesResult.success || !categoriesResult.categories.Any())
+            var categories = categoryService.GetCategories();
+            if (categories.Count == 0)
             {
-                Console.WriteLine("Error: No categories available. Please create a category first.");
+                Console.WriteLine("No categories available. Please create a category first.");
                 return;
             }
 
             Console.WriteLine("\nAvailable Categories:");
-            foreach (var cat in categoriesResult.categories)
+            foreach (var cat in categories)
             {
                 Console.WriteLine($"ID: {cat.Id}, Name: {cat.Name}");
             }
@@ -239,6 +275,13 @@ namespace OnlineShopping
                 return;
             }
 
+            Console.Write("Enter stock quantity: ");
+            if (!int.TryParse(Console.ReadLine(), out int stock))
+            {
+                Console.WriteLine("Invalid stock format.");
+                return;
+            }
+
             Console.Write("Enter category ID: ");
             if (!int.TryParse(Console.ReadLine(), out int categoryId))
             {
@@ -246,18 +289,10 @@ namespace OnlineShopping
                 return;
             }
 
-            var product = new Product
-            {
-                Name = name,
-                UnitPrice = price,
-                CategoryId = categoryId
-            };
-
-            var result = await productService.CreateProductAsync(product);
-            Console.WriteLine(result.success ? $"Success: {result.message}" : $"Error: {result.message}");
+            productService.CreateProduct(name, price, categoryId, stock);
         }
 
-        static async Task UpdateProductAsync(ProductService productService, CategoryService categoryService)
+        static void UpdateProduct(ProductService productService, CategoryService categoryService)
         {
             Console.Write("Enter product ID to update: ");
             if (!int.TryParse(Console.ReadLine(), out int id))
@@ -266,75 +301,73 @@ namespace OnlineShopping
                 return;
             }
 
-            var existingResult = await productService.GetProductByIdAsync(id);
-            if (!existingResult.success || existingResult.product == null)
+            var product = productService.GetProductById(id);
+            if (product == null)
             {
-                Console.WriteLine($"Error: {existingResult.message}");
                 return;
             }
 
-            Console.WriteLine($"\nCurrent Name: {existingResult.product.Name}");
+            Console.WriteLine($"\nCurrent Name: {product.Name}");
             Console.Write("Enter new name (or press Enter to keep current): ");
             var name = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(name))
-                name = existingResult.product.Name;
+                name = product.Name;
 
-            Console.WriteLine($"Current Price: ${existingResult.product.UnitPrice:F2}");
+            Console.WriteLine($"Current Price: ${product.UnitPrice:F2}");
             Console.Write("Enter new price (or press Enter to keep current): ");
             var priceInput = Console.ReadLine();
-            decimal price = existingResult.product.UnitPrice;
-            if (!string.IsNullOrWhiteSpace(priceInput) && !decimal.TryParse(priceInput, out price))
+            decimal price = product.UnitPrice;
+            if (!string.IsNullOrWhiteSpace(priceInput))
             {
-                Console.WriteLine("Invalid price format.");
-                return;
+                if (!decimal.TryParse(priceInput, out price))
+                {
+                    Console.WriteLine("Invalid price format.");
+                    return;
+                }
             }
 
-            // Show available categories
-            var categoriesResult = await categoryService.GetCategoriesAsync();
+            Console.WriteLine($"Current Stock: {product.Stock}");
+            Console.Write("Enter new stock (or press Enter to keep current): ");
+            var stockInput = Console.ReadLine();
+            int stock = product.Stock;
+            if (!string.IsNullOrWhiteSpace(stockInput))
+            {
+                if (!int.TryParse(stockInput, out stock))
+                {
+                    Console.WriteLine("Invalid stock format.");
+                    return;
+                }
+            }
+
+            var categories = categoryService.GetCategories();
             Console.WriteLine("\nAvailable Categories:");
-            foreach (var cat in categoriesResult.categories)
+            foreach (var cat in categories)
             {
                 Console.WriteLine($"ID: {cat.Id}, Name: {cat.Name}");
             }
 
-            Console.WriteLine($"Current Category ID: {existingResult.product.CategoryId}");
+            Console.WriteLine($"Current Category ID: {product.CategoryId}");
             Console.Write("Enter new category ID (or press Enter to keep current): ");
             var categoryInput = Console.ReadLine();
-            int categoryId = existingResult.product.CategoryId;
-            if (!string.IsNullOrWhiteSpace(categoryInput) && !int.TryParse(categoryInput, out categoryId))
+            int categoryId = product.CategoryId;
+            if (!string.IsNullOrWhiteSpace(categoryInput))
             {
-                Console.WriteLine("Invalid category ID format.");
-                return;
+                if (!int.TryParse(categoryInput, out categoryId))
+                {
+                    Console.WriteLine("Invalid category ID format.");
+                    return;
+                }
             }
 
-            var product = new Product
-            {
-                Id = id,
-                Name = name,
-                UnitPrice = price,
-                CategoryId = categoryId
-            };
-
-            var result = await productService.UpdateProductAsync(product);
-            Console.WriteLine(result.success ? $"Success: {result.message}" : $"Error: {result.message}");
+            productService.UpdateProduct(id, name, price, categoryId, stock);
         }
 
-        static async Task DeleteProductAsync(ProductService productService)
+        static void DeleteProduct(ProductService productService)
         {
             Console.Write("Enter product ID to delete: ");
             if (int.TryParse(Console.ReadLine(), out int id))
             {
-                Console.Write($"Are you sure you want to delete product ID {id}? (y/n): ");
-                var confirm = Console.ReadLine()?.ToLower();
-                if (confirm == "y" || confirm == "yes")
-                {
-                    var result = await productService.DeleteProductAsync(id);
-                    Console.WriteLine(result.success ? $"Success: {result.message}" : $"Error: {result.message}");
-                }
-                else
-                {
-                    Console.WriteLine("Delete cancelled.");
-                }
+                productService.DeleteProduct(id);
             }
             else
             {
@@ -342,72 +375,31 @@ namespace OnlineShopping
             }
         }
 
-        // Category CRUD operations
-        static async Task ListCategoriesAsync(CategoryService categoryService)
+        // Category Operations
+        static void ListCategories(CategoryService categoryService)
         {
-            var result = await categoryService.GetCategoriesAsync();
-            if (result.success)
+            var categories = categoryService.GetCategories();
+            Console.WriteLine($"=== All Categories ({categories.Count}) ===");
+            foreach (var category in categories)
             {
-                Console.WriteLine($"=== {result.message} ===");
-                foreach (var category in result.categories)
-                {
-                    Console.WriteLine($"ID: {category.Id}, Name: {category.Name}, " +
-                                    $"Description: {category.Description}, Products: {category.Products.Count}");
-                }
-            }
-            else
-            {
-                Console.WriteLine($"Error: {result.message}");
+                Console.WriteLine($"ID: {category.Id}, Name: {category.Name}, " +
+                                $"Products: {category.Products?.Count ?? 0}");
             }
         }
 
-        static async Task SearchCategoriesAsync(CategoryService categoryService)
-        {
-            Console.Write("Enter search term: ");
-            var searchTerm = Console.ReadLine();
-
-            var result = await categoryService.GetCategoriesAsync(searchTerm);
-            if (result.success)
-            {
-                Console.WriteLine($"\n=== {result.message} ===");
-                foreach (var category in result.categories)
-                {
-                    Console.WriteLine($"ID: {category.Id}, Name: {category.Name}, " +
-                                    $"Description: {category.Description}, Products: {category.Products.Count}");
-                }
-            }
-            else
-            {
-                Console.WriteLine($"Error: {result.message}");
-            }
-        }
-
-        static async Task ViewCategoryDetailsAsync(CategoryService categoryService)
+        static void ViewCategoryDetails(CategoryService categoryService)
         {
             Console.Write("Enter category ID: ");
             if (int.TryParse(Console.ReadLine(), out int id))
             {
-                var result = await categoryService.GetCategoryByIdAsync(id);
-                if (result.success && result.category != null)
+                var category = categoryService.GetCategoryById(id);
+                if (category != null)
                 {
                     Console.WriteLine("\n=== Category Details ===");
-                    Console.WriteLine($"ID: {result.category.Id}");
-                    Console.WriteLine($"Name: {result.category.Name}");
-                    Console.WriteLine($"Description: {result.category.Description}");
-                    Console.WriteLine($"Number of Products: {result.category.Products.Count}");
-                    
-                    if (result.category.Products.Any())
-                    {
-                        Console.WriteLine("\nProducts in this category:");
-                        foreach (var product in result.category.Products)
-                        {
-                            Console.WriteLine($"  - {product.Name} (${product.UnitPrice:F2})");
-                        }
-                    }
-                }
-                else
-                {
-                    Console.WriteLine($"Error: {result.message}");
+                    Console.WriteLine($"ID: {category.Id}");
+                    Console.WriteLine($"Name: {category.Name}");
+                    Console.WriteLine($"Description: {category.Description}");
+                    Console.WriteLine($"Number of Products: {category.Products?.Count ?? 0}");
                 }
             }
             else
@@ -416,27 +408,19 @@ namespace OnlineShopping
             }
         }
 
-        static async Task CreateCategoryAsync(CategoryService categoryService)
+        static void CreateCategory(CategoryService categoryService)
         {
             Console.WriteLine("=== Create New Category ===");
-            
             Console.Write("Enter category name: ");
             var name = Console.ReadLine() ?? "";
 
-            Console.Write("Enter description: ");
+            Console.Write("Enter category description: ");
             var description = Console.ReadLine() ?? "";
 
-            var category = new Category
-            {
-                Name = name,
-                Description = description
-            };
-
-            var result = await categoryService.CreateCategoryAsync(category);
-            Console.WriteLine(result.success ? $"Success: {result.message}" : $"Error: {result.message}");
+            categoryService.CreateCategory(name, description);
         }
 
-        static async Task UpdateCategoryAsync(CategoryService categoryService)
+        static void UpdateCategory(CategoryService categoryService)
         {
             Console.Write("Enter category ID to update: ");
             if (!int.TryParse(Console.ReadLine(), out int id))
@@ -445,51 +429,72 @@ namespace OnlineShopping
                 return;
             }
 
-            var existingResult = await categoryService.GetCategoryByIdAsync(id);
-            if (!existingResult.success || existingResult.category == null)
+            var category = categoryService.GetCategoryById(id);
+            if (category == null)
             {
-                Console.WriteLine($"Error: {existingResult.message}");
                 return;
             }
 
-            Console.WriteLine($"\nCurrent Name: {existingResult.category.Name}");
+            Console.WriteLine($"\nCurrent Name: {category.Name}");
             Console.Write("Enter new name (or press Enter to keep current): ");
             var name = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(name))
-                name = existingResult.category.Name;
+                name = category.Name;
 
-            Console.WriteLine($"Current Description: {existingResult.category.Description}");
+            Console.WriteLine($"Current Description: {category.Description}");
             Console.Write("Enter new description (or press Enter to keep current): ");
             var description = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(description))
-                description = existingResult.category.Description;
+                description = category.Description;
 
-            var category = new Category
-            {
-                Id = id,
-                Name = name,
-                Description = description
-            };
-
-            var result = await categoryService.UpdateCategoryAsync(category);
-            Console.WriteLine(result.success ? $"Success: {result.message}" : $"Error: {result.message}");
+            categoryService.UpdateCategory(id, name, description);
         }
 
-        static async Task DeleteCategoryAsync(CategoryService categoryService)
+        static void DeleteCategory(CategoryService categoryService)
         {
             Console.Write("Enter category ID to delete: ");
             if (int.TryParse(Console.ReadLine(), out int id))
             {
-                Console.Write($"Are you sure you want to delete category ID {id}? (y/n): ");
-                var confirm = Console.ReadLine()?.ToLower();
-                if (confirm == "y" || confirm == "yes")
+                categoryService.DeleteCategory(id);
+            }
+            else
+            {
+                Console.WriteLine("Invalid ID format.");
+            }
+        }
+
+        // Order Operations
+        static void ListOrders(OrderService orderService)
+        {
+            var orders = orderService.GetAllOrders();
+            Console.WriteLine($"=== All Orders ({orders.Count}) ===");
+            foreach (var order in orders)
+            {
+                Console.WriteLine($"ID: {order.Id}, Date: {order.Date:yyyy-MM-dd}, " +
+                                $"Customer: {order.Customer?.Name ?? "N/A"}, " +
+                                $"Total: ${order.TotalAmount:F2}, Items: {order.OrderLines?.Count ?? 0}");
+            }
+        }
+
+        static void ViewOrderDetails(OrderService orderService)
+        {
+            Console.Write("Enter order ID: ");
+            if (int.TryParse(Console.ReadLine(), out int id))
+            {
+                var order = orderService.GetOrderById(id);
+                if (order != null)
                 {
-                    var result = await categoryService.DeleteCategoryAsync(id);
-                    Console.WriteLine(result.success ? $"Success: {result.message}" : $"Error: {result.message}");
-                }
-                else
-                {
-                    Console.WriteLine("Delete cancelled.");
+                    Console.WriteLine("\n=== Order Details ===");
+                    Console.WriteLine($"Order ID: {order.Id}");
+                    Console.WriteLine($"Date: {order.Date:yyyy-MM-dd HH:mm}");
+                    Console.WriteLine($"Customer: {order.Customer?.Name ?? "N/A"}");
+                    Console.WriteLine($"Total Amount: ${order.TotalAmount:F2}");
+                    Console.WriteLine("\nOrder Items:");
+                    foreach (var line in order.OrderLines ?? new List<OrderLine>())
+                    {
+                        Console.WriteLine($"  - {line.Product?.Name ?? "N/A"}: " +
+                                        $"{line.Quantity} x ${line.UnitPrice:F2} = ${line.Quantity * line.UnitPrice:F2}");
+                    }
                 }
             }
             else
@@ -498,67 +503,246 @@ namespace OnlineShopping
             }
         }
 
-        // Password hashing test
-        static void TestPasswordHashing()
+        static void CreateOrder(OrderService orderService, AppDbContext context)
         {
-            Console.WriteLine("\n=== PASSWORD HASHING TEST ===\n");
+            Console.WriteLine("=== Create New Order ===");
 
-            // Test 1: Hash a new password
-            Console.Write("Enter a password to hash: ");
-            var password = Console.ReadLine() ?? "";
-
-            if (string.IsNullOrWhiteSpace(password))
+            // Show customers
+            var customers = context.Customers.ToList();
+            if (customers.Count == 0)
             {
-                Console.WriteLine("Password cannot be empty.");
+                Console.WriteLine("No customers available.");
                 return;
             }
 
-            Console.WriteLine("\n--- Hashing Password ---");
-            var (hash, salt) = PasswordHasher.HashPassword(password);
+            Console.WriteLine("\nAvailable Customers:");
+            foreach (var c in customers)
+            {
+                Console.WriteLine($"ID: {c.Id}, Name: {c.Name}");
+            }
+
+            Console.Write("\nEnter customer ID: ");
+            if (!int.TryParse(Console.ReadLine(), out int customerId))
+            {
+                Console.WriteLine("Invalid customer ID.");
+                return;
+            }
+
+            // Show products
+            var products = context.Products.Include(p => p.Category).ToList();
+            if (products.Count == 0)
+            {
+                Console.WriteLine("No products available.");
+                return;
+            }
+
+            Console.WriteLine("\nAvailable Products:");
+            foreach (var p in products)
+            {
+                Console.WriteLine($"ID: {p.Id}, Name: {p.Name}, Price: ${p.UnitPrice:F2}, Stock: {p.Stock}");
+            }
+
+            // Get order items
+            var orderItems = new List<(int productId, int quantity)>();
+            bool addingItems = true;
+
+            while (addingItems)
+            {
+                Console.Write("\nEnter product ID (or 0 to finish): ");
+                if (!int.TryParse(Console.ReadLine(), out int productId))
+                {
+                    Console.WriteLine("Invalid product ID.");
+                    continue;
+                }
+
+                if (productId == 0)
+                {
+                    addingItems = false;
+                    continue;
+                }
+
+                Console.Write("Enter quantity: ");
+                if (!int.TryParse(Console.ReadLine(), out int quantity))
+                {
+                    Console.WriteLine("Invalid quantity.");
+                    continue;
+                }
+
+                orderItems.Add((productId, quantity));
+                Console.WriteLine("Item added to order.");
+            }
+
+            if (orderItems.Count == 0)
+            {
+                Console.WriteLine("No items added to order.");
+                return;
+            }
+
+            orderService.CreateOrder(customerId, orderItems);
+        }
+
+        static void UpdateOrder(OrderService orderService, AppDbContext context)
+        {
+            Console.Write("Enter order ID to update: ");
+            if (!int.TryParse(Console.ReadLine(), out int orderId))
+            {
+                Console.WriteLine("Invalid ID format.");
+                return;
+            }
+
+            var order = orderService.GetOrderById(orderId);
+            if (order == null)
+            {
+                Console.WriteLine($"Order with ID {orderId} not found.");
+                return;
+            }
+
+            Console.WriteLine($"\n=== Current Order Details ===");
+            Console.WriteLine($"Order ID: {order.Id}");
+            Console.WriteLine($"Customer: {order.Customer?.Name ?? "N/A"}");
+            Console.WriteLine($"Date: {order.Date:yyyy-MM-dd HH:mm}");
+            Console.WriteLine($"Total: ${order.TotalAmount:F2}");
+            Console.WriteLine("\nOrder Items:");
+            foreach (var line in order.OrderLines)
+            {
+                Console.WriteLine($"  - Product ID: {line.ProductId}, " +
+                                $"Name: {line.Product?.Name ?? "N/A"}, " +
+                                $"Quantity: {line.Quantity}, " +
+                                $"Price: ${line.UnitPrice:F2}");
+            }
+
+            Console.WriteLine("\n=== Update Order Items ===");
+            Console.Write("Enter product ID to add/update/remove: ");
+            if (!int.TryParse(Console.ReadLine(), out int productId))
+            {
+                Console.WriteLine("Invalid product ID format.");
+                return;
+            }
+
+            var product = context.Products.FirstOrDefault(p => p.Id == productId);
+            if (product == null)
+            {
+                Console.WriteLine($"Product with ID {productId} not found.");
+                return;
+            }
+
+            Console.WriteLine($"\nProduct: {product.Name}");
+            Console.WriteLine($"Current Stock: {product.Stock}");
             
-            Console.WriteLine($"Password: {password}");
-            Console.WriteLine($"Salt (Base64): {salt}");
-            Console.WriteLine($"Hash (Base64): {hash}");
-            Console.WriteLine($"\nSalt Length: {Convert.FromBase64String(salt).Length} bytes");
-            Console.WriteLine($"Hash Length: {Convert.FromBase64String(hash).Length} bytes");
+            var existingLine = order.OrderLines.FirstOrDefault(ol => ol.ProductId == productId);
+            if (existingLine != null)
+            {
+                Console.WriteLine($"Current quantity in order: {existingLine.Quantity}");
+            }
+            else
+            {
+                Console.WriteLine("This product is not in the order yet.");
+            }
 
-            // Test 2: Verify correct password
-            Console.WriteLine("\n--- Verification Test ---");
-            Console.Write("Enter password again to verify: ");
-            var testPassword = Console.ReadLine() ?? "";
+            Console.Write("Enter new quantity (0 to remove item): ");
+            if (!int.TryParse(Console.ReadLine(), out int newQuantity))
+            {
+                Console.WriteLine("Invalid quantity format.");
+                return;
+            }
 
-            bool isValid = PasswordHasher.VerifyPassword(testPassword, hash, salt);
-            Console.WriteLine($"Verification Result: {(isValid ? "✓ VALID" : "✗ INVALID")}");
+            if (newQuantity < 0)
+            {
+                Console.WriteLine("Quantity cannot be negative.");
+                return;
+            }
 
-            // Test 3: Verify wrong password
-            Console.WriteLine("\n--- Wrong Password Test ---");
-            Console.Write("Enter a different password: ");
-            var wrongPassword = Console.ReadLine() ?? "";
+            Console.WriteLine("\n[UPDATE] Processing order update...");
+            orderService.UpdateOrderItems(orderId, productId, newQuantity);
+        }
 
-            bool isWrong = PasswordHasher.VerifyPassword(wrongPassword, hash, salt);
-            Console.WriteLine($"Verification Result: {(isWrong ? "✓ VALID" : "✗ INVALID (as expected)")}");
+        static void DeleteOrder(OrderService orderService)
+        {
+            Console.Write("Enter order ID to delete: ");
+            if (int.TryParse(Console.ReadLine(), out int id))
+            {
+                orderService.DeleteOrder(id);
+            }
+            else
+            {
+                Console.WriteLine("Invalid ID format.");
+            }
+        }
 
-            // Test 4: Show that same password produces different hashes (different salts)
-            Console.WriteLine("\n--- Unique Salt Test ---");
-            Console.WriteLine("Hashing the same password twice produces different results:");
-            var (hash1, salt1) = PasswordHasher.HashPassword(password);
-            var (hash2, salt2) = PasswordHasher.HashPassword(password);
+        static void ViewLowStockProducts(OrderService orderService)
+        {
+            Console.Write("Enter stock threshold (default 10): ");
+            var input = Console.ReadLine();
+            int threshold = 10;
+            if (!string.IsNullOrWhiteSpace(input))
+            {
+                int.TryParse(input, out threshold);
+            }
+
+            var products = orderService.GetLowStockProducts(threshold);
+            Console.WriteLine($"\n=== Low Stock Products ({products.Count}) ===");
+            foreach (var product in products)
+            {
+                Console.WriteLine($"ID: {product.Id}, Name: {product.Name}, " +
+                                $"Stock: {product.Stock}, Category: {product.Category?.Name ?? "N/A"}");
+            }
+        }
+
+        // Test DATABASE VIEW
+        static void TestDatabaseView(OrderService orderService)
+        {
+            Console.WriteLine("\n=== Testing Database VIEW ===");
+            Console.WriteLine("Querying OrderSummaryView...\n");
             
-            Console.WriteLine($"\nFirst Hash:  {hash1.Substring(0, 20)}...");
-            Console.WriteLine($"Second Hash: {hash2.Substring(0, 20)}...");
-            Console.WriteLine($"Hashes are different: {hash1 != hash2}");
-            Console.WriteLine($"But both verify correctly: {PasswordHasher.VerifyPassword(password, hash1, salt1) && PasswordHasher.VerifyPassword(password, hash2, salt2)}");
+            var summaries = orderService.GetOrderSummariesFromView();
+            
+            if (summaries.Count == 0)
+            {
+                Console.WriteLine("No order summaries found.");
+                return;
+            }
 
-            Console.WriteLine("\n--- Security Information ---");
-            Console.WriteLine("Algorithm: PBKDF2 (Password-Based Key Derivation Function 2)");
-            Console.WriteLine("Hash Function: SHA256");
-            Console.WriteLine("Iterations: 100,000 (key stretching for brute-force resistance)");
-            Console.WriteLine("Salt Size: 16 bytes (128 bits) - unique per user");
-            Console.WriteLine("Hash Size: 32 bytes (256 bits)");
-            Console.WriteLine("\nThis prevents:");
-            Console.WriteLine("- Rainbow table attacks (unique salts)");
-            Console.WriteLine("- Brute force attacks (100k iterations make it slow)");
-            Console.WriteLine("- Dictionary attacks (salt + iterations)");
+            Console.WriteLine($"Found {summaries.Count} order summaries:\n");
+            foreach (var summary in summaries)
+            {
+                Console.WriteLine($"Order ID: {summary.OrderId}");
+                Console.WriteLine($"Date: {summary.OrderDate:yyyy-MM-dd}");
+                Console.WriteLine($"Customer: {summary.CustomerName} ({summary.CustomerEmail})");
+                Console.WriteLine($"Total Amount: ${summary.TotalAmount:F2}");
+                Console.WriteLine($"Total Items: {summary.TotalItems}");
+                Console.WriteLine("---");
+            }
+        }
+
+        // Test ENCRYPTION
+        static void TestEncryption(AppDbContext context)
+        {
+            Console.WriteLine("\n=== Testing Application-Level Encryption ===");
+            Console.WriteLine("Customer addresses are stored ENCRYPTED in the database.\n");
+            
+            var customers = context.Customers.ToList();
+            
+            foreach (var customer in customers)
+            {
+                Console.WriteLine($"Customer: {customer.Name}");
+                Console.WriteLine($"  Encrypted Address (in DB): {customer.Address}");
+                Console.WriteLine($"  Decrypted Address: {OnlineShopping.Utilities.EncryptionHelper.Decrypt(customer.Address)}");
+                Console.WriteLine();
+            }
+
+            // Demonstrate encryption
+            Console.Write("Enter a test address to encrypt: ");
+            var testAddress = Console.ReadLine() ?? "";
+            
+            if (!string.IsNullOrWhiteSpace(testAddress))
+            {
+                var encrypted = OnlineShopping.Utilities.EncryptionHelper.Encrypt(testAddress);
+                var decrypted = OnlineShopping.Utilities.EncryptionHelper.Decrypt(encrypted);
+                
+                Console.WriteLine($"\nOriginal: {testAddress}");
+                Console.WriteLine($"Encrypted: {encrypted}");
+                Console.WriteLine($"Decrypted: {decrypted}");
+            }
         }
     }
 }
