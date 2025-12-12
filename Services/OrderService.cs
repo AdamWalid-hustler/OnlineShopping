@@ -14,7 +14,7 @@ namespace OnlineShopping.Services
         }
 
         // CREATE Order with OrderLines and inventory update
-        // Uses TRANSACTION to ensure data consistency - all changes rollback on error
+        // Uses TRANSACTION to ensure data consistency
         public Order? CreateOrder(int customerId, List<(int productId, int quantity)> orderItems)
         {
             // Start a database transaction
@@ -232,7 +232,7 @@ namespace OnlineShopping.Services
             }
         }
 
-        // UPDATE Order - Add/Remove items with inventory updates
+        // UPDATE Order, Add/Remove items with inventory updates
         public bool UpdateOrderItems(int orderId, int productId, int newQuantity)
         {
             using var transaction = _context.Database.BeginTransaction();

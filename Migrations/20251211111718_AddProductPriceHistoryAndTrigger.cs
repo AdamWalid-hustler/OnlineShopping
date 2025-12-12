@@ -53,7 +53,7 @@ namespace OnlineShopping.Migrations
                 table: "ProductPriceHistory",
                 column: "ProductId");
 
-            // Create TRIGGER for INSERT - logs when new products are created
+            // Create TRIGGER for INSERT logs when new products are created
             migrationBuilder.Sql(@"
                 CREATE TRIGGER trg_Product_Insert_PriceHistory
                 AFTER INSERT ON Products
@@ -64,7 +64,7 @@ namespace OnlineShopping.Migrations
                 END;
             ");
 
-            // Create TRIGGER for UPDATE - logs when product prices change
+            // Create TRIGGER for UPDATE  logs when product prices change
             migrationBuilder.Sql(@"
                 CREATE TRIGGER trg_Product_Update_PriceHistory
                 AFTER UPDATE OF UnitPrice ON Products

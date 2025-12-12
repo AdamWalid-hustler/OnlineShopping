@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace OnlineShopping.Utilities
+namespace OnlineShopping.Helpers
 {
     public class PerformanceMeasurement
     {

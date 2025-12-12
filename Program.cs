@@ -818,7 +818,7 @@ namespace OnlineShopping
             {
                 Console.WriteLine($"Customer: {customer.Name}");
                 Console.WriteLine($"  Encrypted Address (in DB): {customer.Address}");
-                Console.WriteLine($"  Decrypted Address: {OnlineShopping.Utilities.EncryptionHelper.Decrypt(customer.Address)}");
+                Console.WriteLine($"  Decrypted Address: {OnlineShopping.Helpers.EncryptionHelper.Decrypt(customer.Address)}");
                 Console.WriteLine();
             }
 
@@ -828,8 +828,8 @@ namespace OnlineShopping
             
             if (!string.IsNullOrWhiteSpace(testAddress))
             {
-                var encrypted = OnlineShopping.Utilities.EncryptionHelper.Encrypt(testAddress);
-                var decrypted = OnlineShopping.Utilities.EncryptionHelper.Decrypt(encrypted);
+                var encrypted = OnlineShopping.Helpers.EncryptionHelper.Encrypt(testAddress);
+                var decrypted = OnlineShopping.Helpers.EncryptionHelper.Decrypt(encrypted);
                 
                 Console.WriteLine($"\nOriginal: {testAddress}");
                 Console.WriteLine($"Encrypted: {encrypted}");

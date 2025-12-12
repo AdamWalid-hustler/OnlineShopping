@@ -18,7 +18,7 @@ namespace OnlineShopping.Services
         {
             try
             {
-                // Validate mandatory fields
+                // Validate important fields
                 if (string.IsNullOrWhiteSpace(name))
                 {
                     Console.WriteLine("Error: Category name is required");
@@ -116,7 +116,7 @@ namespace OnlineShopping.Services
         {
             try
             {
-                // Validate mandatory fields
+                // Validate important fields
                 if (string.IsNullOrWhiteSpace(name))
                 {
                     Console.WriteLine("Error: Category name is required");
