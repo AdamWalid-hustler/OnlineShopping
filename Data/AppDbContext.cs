@@ -24,6 +24,9 @@ namespace OnlineShopping.Data
         
         // Database VIEW
         public DbSet<OrderSummaryView> OrderSummaryView { get; set; }
+        
+        // Price history table for trigger
+        public DbSet<ProductPriceHistory> ProductPriceHistory { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -42,6 +45,13 @@ namespace OnlineShopping.Data
                 entity.HasNoKey(); // Views don't have primary keys
                 entity.ToView("OrderSummaryView"); // Map to database view
             });
+
+            // Configure ProductPriceHistory indexes
+            modelBuilder.Entity<ProductPriceHistory>()
+                .HasIndex(p => p.ProductId);
+            
+            modelBuilder.Entity<ProductPriceHistory>()
+                .HasIndex(p => p.ChangedAt);
 
             // Configure indexes for performance
             modelBuilder.Entity<Customer>()

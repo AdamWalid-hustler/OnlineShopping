@@ -7,8 +7,8 @@ namespace OnlineShopping.Utilities
     {
         
      
-        private static readonly string EncryptionKey = "MySecretEncryptionKey2024!"; 
-        private static readonly byte[] Salt = Encoding.UTF8.GetBytes("FixedSalt123"); // Fixed salt for consistent encryption
+        private static readonly string EncryptionKey = "UnbeatableEncription!"; 
+        private static readonly byte[] Salt = Encoding.UTF8.GetBytes("MyFirstSalt123"); 
 
         // Encrypt a string
         public static string Encrypt(string plainText)
@@ -54,7 +54,7 @@ namespace OnlineShopping.Utilities
                 
                 byte[] encrypted = Convert.FromBase64String(cipherText);
                 
-                // Derive same key from password
+                // Same key from password
                 using (var deriveBytes = new Rfc2898DeriveBytes(EncryptionKey, Salt, 10000, HashAlgorithmName.SHA256))
                 {
                     byte[] keyBytes = deriveBytes.GetBytes(32); // 256-bit key

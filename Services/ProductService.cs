@@ -211,5 +211,22 @@ namespace OnlineShopping.Services
                 return false;
             }
         }
+
+        // Get price history for a product (demonstrates database TRIGGER)
+        public List<ProductPriceHistory> GetProductPriceHistory(int productId)
+        {
+            return _context.ProductPriceHistory
+                .Where(h => h.ProductId == productId)
+                .OrderByDescending(h => h.ChangedAt)
+                .ToList();
+        }
+
+        // Get all price changes (demonstrates database TRIGGER)
+        public List<ProductPriceHistory> GetAllPriceHistory()
+        {
+            return _context.ProductPriceHistory
+                .OrderByDescending(h => h.ChangedAt)
+                .ToList();
+        }
     }
 }

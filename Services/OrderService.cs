@@ -330,7 +330,7 @@ namespace OnlineShopping.Services
             }
         }
 
-        // DELETE Order (with inventory restoration)
+        // DELETE Order and restore inventory
         public bool DeleteOrder(int id)
         {
             try

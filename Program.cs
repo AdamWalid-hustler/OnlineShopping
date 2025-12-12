@@ -24,8 +24,9 @@ namespace OnlineShopping
                 Console.WriteLine("2. Category Management");
                 Console.WriteLine("3. Order Management");
                 Console.WriteLine("4. Test Database View");
-                Console.WriteLine("5. Test Encryption");
-                Console.WriteLine("6. Exit");
+                Console.WriteLine("5. Test Database Trigger (Price History)");
+                Console.WriteLine("6. Test Encryption");
+                Console.WriteLine("7. Exit");
                 Console.Write("Select option: ");
 
                 var choice = Console.ReadLine();
@@ -46,9 +47,12 @@ namespace OnlineShopping
                         TestDatabaseView(orderService);
                         break;
                     case "5":
-                        TestEncryption(context);
+                        TestDatabaseTrigger(productService);
                         break;
                     case "6":
+                        TestEncryption(context);
+                        break;
+                    case "7":
                         exit = true;
                         Console.WriteLine("Goodbye!");
                         break;
@@ -711,6 +715,94 @@ namespace OnlineShopping
                 Console.WriteLine($"Total Amount: ${summary.TotalAmount:F2}");
                 Console.WriteLine($"Total Items: {summary.TotalItems}");
                 Console.WriteLine("---");
+            }
+        }
+
+        // Test DATABASE TRIGGER (Price History)
+        static void TestDatabaseTrigger(ProductService productService)
+        {
+            Console.WriteLine("\n=== Testing Database TRIGGER ===");
+            Console.WriteLine("The database has TWO TRIGGERS that automatically log price changes:");
+            Console.WriteLine("1. trg_Product_Insert_PriceHistory - Logs when new products are created");
+            Console.WriteLine("2. trg_Product_Update_PriceHistory - Logs when product prices change\n");
+
+            // Show all price history
+            var allHistory = productService.GetAllPriceHistory();
+            
+            if (allHistory.Count > 0)
+            {
+                Console.WriteLine($"=== All Price Changes ({allHistory.Count} records) ===");
+                foreach (var history in allHistory)
+                {
+                    Console.WriteLine($"Product: {history.ProductName} (ID: {history.ProductId})");
+                    Console.WriteLine($"  Change Type: {history.ChangeType}");
+                    Console.WriteLine($"  Old Price: ${history.OldPrice:F2}");
+                    Console.WriteLine($"  New Price: ${history.NewPrice:F2}");
+                    Console.WriteLine($"  Changed At: {history.ChangedAt:yyyy-MM-dd HH:mm:ss}");
+                    Console.WriteLine("---");
+                }
+            }
+            else
+            {
+                Console.WriteLine("No price history found yet.");
+                Console.WriteLine("The triggers will log changes when you:");
+                Console.WriteLine("  - Create new products (INSERT trigger)");
+                Console.WriteLine("  - Update product prices (UPDATE trigger)");
+            }
+
+            Console.WriteLine("\n=== Demonstrate TRIGGER ===");
+            Console.WriteLine("Let's update a product price to see the trigger in action!\n");
+            
+            // Show available products
+            var products = productService.GetProducts();
+            Console.WriteLine("Available Products:");
+            foreach (var p in products.Take(5))
+            {
+                Console.WriteLine($"  ID: {p.Id}, Name: {p.Name}, Price: ${p.UnitPrice:F2}");
+            }
+
+            Console.Write("\nEnter product ID to update price: ");
+            if (int.TryParse(Console.ReadLine(), out int productId))
+            {
+                var product = productService.GetProductById(productId);
+                if (product != null)
+                {
+                    Console.WriteLine($"\nCurrent product: {product.Name}");
+                    Console.WriteLine($"Current price: ${product.UnitPrice:F2}");
+                    
+                    Console.Write("Enter new price: ");
+                    if (decimal.TryParse(Console.ReadLine(), out decimal newPrice) && newPrice > 0)
+                    {
+                        Console.WriteLine($"\n[TRIGGER] Updating price from ${product.UnitPrice:F2} to ${newPrice:F2}...");
+                        
+                        productService.UpdateProduct(productId, product.Name, newPrice, product.CategoryId, product.Stock);
+                        
+                        Console.WriteLine("[TRIGGER] Database trigger automatically logged this change!");
+                        
+                        // Show the new history entry
+                        var productHistory = productService.GetProductPriceHistory(productId);
+                        if (productHistory.Count > 0)
+                        {
+                            Console.WriteLine($"\n=== Price History for {product.Name} ===");
+                            foreach (var history in productHistory)
+                            {
+                                Console.WriteLine($"  {history.ChangeType}: ${history.OldPrice:F2} → ${history.NewPrice:F2} at {history.ChangedAt:yyyy-MM-dd HH:mm:ss}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid price.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Product not found.");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Invalid product ID.");
             }
         }
 
